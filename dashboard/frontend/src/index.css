@@ -293,6 +293,11 @@ body {
   box-shadow: 0 0 10px var(--color-critical);
 }
 
+.status-dot.simulated {
+  background-color: var(--accent-blue);
+  box-shadow: 0 0 10px var(--accent-blue);
+}
+
 .status-dot.pulse::after {
   content: '';
   position: absolute;
@@ -714,6 +719,11 @@ body {
   border-color: rgba(255, 69, 58, 0.25);
   color: var(--color-critical);
 }
+.hud-banner.simulated {
+  background: rgba(10, 132, 255, 0.08);
+  border-color: rgba(10, 132, 255, 0.25);
+  color: var(--accent-blue);
+}
 
 .hud-pill {
   padding: 4px 12px;
@@ -725,6 +735,7 @@ body {
 .hud-pill.normal { background: var(--color-success); color: #000; }
 .hud-pill.warning { background: var(--color-warning); color: #000; }
 .hud-pill.critical { background: var(--color-critical); color: #fff; }
+.hud-pill.simulated { background: var(--accent-blue); color: #fff; }
 
 .status-grid-row {
   display: grid;

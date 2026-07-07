@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-  AreaChart,
-  Area,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  ResponsiveContainer
-} from 'recharts';
+// import {
+//   AreaChart,
+//   Area,
+//   LineChart,
+//   Line,
+//   XAxis,
+//   YAxis,
+//   CartesianGrid,
+//   Tooltip,
+//   ReferenceLine,
+//   ResponsiveContainer
+// } from 'recharts';
 import Loader from './dashboard/components/Loader';
 import {
   getSensorData,
@@ -67,40 +67,40 @@ const formatTime2DigitSafe = (timestamp: any) => {
   return isNaN(d.getTime()) ? '--:--' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    const value = data.oxygen !== null ? data.oxygen : data.predicted;
-    let labelText = "Historical Reading";
-    if (data.time === "+5") {
-      labelText = "Prediction (+5 min)";
-    } else if (data.time === "+10") {
-      labelText = "Prediction (+10 min)";
-    }
-    return (
-      <div 
-        className="glass-card" 
-        style={{ 
-          padding: '10px 14px', 
-          borderRadius: '12px', 
-          border: '1px solid rgba(255,255,255,0.08)', 
-          background: 'rgba(10, 10, 12, 0.95)', 
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-          transform: 'none',
-          transition: 'none'
-        }}
-      >
-        <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          {labelText}
-        </p>
-        <p style={{ margin: '4px 0 0 0', fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#22D3EE', letterSpacing: '-0.02em' }}>
-          {value !== null && value !== undefined ? `${value.toFixed(2)}%` : '--'}
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
+// const CustomTooltip = ({ active, payload }: any) => {
+//   if (active && payload && payload.length) {
+//     const data = payload[0].payload;
+//     const value = data.oxygen !== null ? data.oxygen : data.predicted;
+//     let labelText = "Historical Reading";
+//     if (data.time === "+5") {
+//       labelText = "Prediction (+5 min)";
+//     } else if (data.time === "+10") {
+//       labelText = "Prediction (+10 min)";
+//     }
+//     return (
+//       <div 
+//         className="glass-card" 
+//         style={{ 
+//           padding: '10px 14px', 
+//           borderRadius: '12px', 
+//           border: '1px solid rgba(255,255,255,0.08)', 
+//           background: 'rgba(10, 10, 12, 0.95)', 
+//           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+//           transform: 'none',
+//           transition: 'none'
+//         }}
+//       >
+//         <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+//           {labelText}
+//         </p>
+//         <p style={{ margin: '4px 0 0 0', fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#22D3EE', letterSpacing: '-0.02em' }}>
+//           {value !== null && value !== undefined ? `${value.toFixed(2)}%` : '--'}
+//         </p>
+//       </div>
+//     );
+//   }
+//   return null;
+// };
 
 
 interface Alert {
@@ -164,7 +164,7 @@ export default function App() {
   // Interactive trends chart tabs
   const [activeTrendTab, setActiveTrendTab] = useState<'oxygen' | 'temperature' | 'humidity'>('oxygen');
   const [timeFilter, setTimeFilter] = useState<'5m' | '10m'>('10m');
-  const [predictionChartType, setPredictionChartType] = useState<'area' | 'linear'>('area');
+  // const [predictionChartType, setPredictionChartType] = useState<'area' | 'linear'>('area');
   
   // Real-time sensor state variables
   const [oxygen, setOxygen] = useState(0);
@@ -172,6 +172,7 @@ export default function App() {
   const [humidity, setHumidity] = useState(0);
   const [mockAnomaly, setMockAnomaly] = useState(false);
   const [deviceStatus, setDeviceStatus] = useState<{ status: string; battery: string; lastUpdated: string } | null>(null);
+  const [dataSource, setDataSource] = useState<string>("synthetic");
 
   // Status variables for Firebase
   const [firebaseStatus, setFirebaseStatus] = useState<'CONNECTED' | 'WAITING_FOR_DATA' | 'DISCONNECTED'>('CONNECTED');
@@ -192,6 +193,80 @@ export default function App() {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [events, setEvents] = useState<SystemEvent[]>([]);
+
+  // Status thresholds check
+  const o2Status = useMemo(() => {
+    if (oxygen < 19.5 || oxygen > 23.5) return 'critical';
+    if (oxygen < 20.0 || oxygen > 23.0) return 'warning';
+    return 'normal';
+  }, [oxygen]);
+
+  const tempStatus = useMemo(() => {
+    if (temperature <= 28) return 'normal';
+    if (temperature <= 32) return 'warning';
+    return 'critical';
+  }, [temperature]);
+
+  const humStatus = useMemo(() => {
+    if (humidity <= 55) return 'normal';
+    if (humidity <= 60) return 'warning';
+    return 'critical';
+  }, [humidity]);
+
+  const overallSafety = useMemo(() => {
+    // 1. Critical safety breach takes highest precedence
+    if (o2Status === 'critical' || tempStatus === 'critical' || humStatus === 'critical') return 'critical';
+
+    // 2. Offline Firebase connection reports as warning (degraded state)
+    if (firebaseStatus !== 'CONNECTED') {
+      return 'warning';
+    }
+
+    // 3. Warning limits breach
+    if (tempStatus === 'warning' || humStatus === 'warning') return 'warning';
+
+    return 'normal';
+  }, [o2Status, tempStatus, humStatus, firebaseStatus]);
+
+  const isSimulated = useMemo(() => {
+    return dataSource !== 'esp32_main_01';
+  }, [dataSource]);
+
+  const hudConfig = useMemo(() => {
+    let hudClass = overallSafety;
+    let hudText = 'SYSTEM SECURE: ALL ENVIRONMENTAL SAFETY PARAMETERS NOMINAL.';
+    let hudPillText = 'SAFE';
+    let hudIcon = '🛡️';
+
+    if (overallSafety === 'critical') {
+      hudClass = 'critical';
+      hudText = 'CRITICAL CHAMBER BREACH: ENVIRONMENTAL CRITICAL ALARM ACTIVE!';
+      hudPillText = 'CRITICAL';
+      hudIcon = '🚨';
+    } else if (overallSafety === 'warning') {
+      hudClass = 'warning';
+      hudText = 'WARNING LEVEL BREACH: SENSORS REPORTING OUT OF NOMINAL BOUNDS.';
+      hudPillText = 'WARNING';
+      hudIcon = '⚠️';
+    } else if (firebaseStatus !== 'CONNECTED') {
+      hudClass = 'warning';
+      hudText = 'DEGRADED MONITORING: FIREBASE DATABASE OFFLINE. REAL-TIME TELEMETRY IS INACTIVE.';
+      hudPillText = 'DEGRADED';
+      hudIcon = '⚠️';
+    } else if (isSimulated) {
+      hudClass = 'simulated';
+      hudText = 'Running in simulation mode — live ESP32 hardware not connected. All readings are synthetically generated for demo purposes.';
+      hudPillText = 'SIMULATING';
+      hudIcon = 'ℹ️';
+    } else {
+      hudClass = 'normal';
+      hudText = 'SYSTEM SECURE: ALL ENVIRONMENTAL SAFETY PARAMETERS NOMINAL.';
+      hudPillText = 'SAFE';
+      hudIcon = '🛡️';
+    }
+
+    return { hudClass, hudText, hudPillText, hudIcon };
+  }, [overallSafety, firebaseStatus, isSimulated]);
 
   // Load telemetry buffers
   useEffect(() => {
@@ -244,9 +319,11 @@ export default function App() {
               const o2Val = sensorData.oxygen ?? 0;
               const tempVal = sensorData.temperature ?? 0;
               const humVal = sensorData.humidity ?? 0;
+              const srcVal = sensorData.source ?? "synthetic";
               setOxygen(o2Val);
               setTemperature(tempVal);
               setHumidity(humVal);
+              setDataSource(srcVal);
               setOxygenHistory(prev => [...prev.slice(1), o2Val]);
               setTempHistory(prev => [...prev.slice(1), tempVal]);
               setHumidityHistory(prev => [...prev.slice(1), humVal]);
@@ -409,39 +486,7 @@ export default function App() {
     };
   }, [systemTime]);
 
-  // Status thresholds check
-  const o2Status = useMemo(() => {
-    if (oxygen < 19.5 || oxygen > 23.5) return 'critical';
-    if (oxygen < 20.0 || oxygen > 23.0) return 'warning';
-    return 'normal';
-  }, [oxygen]);
 
-  const tempStatus = useMemo(() => {
-    if (temperature <= 28) return 'normal';
-    if (temperature <= 32) return 'warning';
-    return 'critical';
-  }, [temperature]);
-
-  const humStatus = useMemo(() => {
-    if (humidity <= 55) return 'normal';
-    if (humidity <= 60) return 'warning';
-    return 'critical';
-  }, [humidity]);
-
-  const overallSafety = useMemo(() => {
-    // 1. Critical safety breach takes highest precedence
-    if (o2Status === 'critical' || tempStatus === 'critical' || humStatus === 'critical') return 'critical';
-
-    // 2. Offline connections report as warning (amber degraded state)
-    if (firebaseStatus !== 'CONNECTED' || !deviceStatus || deviceStatus.status !== 'Online') {
-      return 'warning';
-    }
-
-    // 3. Warning limits breach
-    if (tempStatus === 'warning' || humStatus === 'warning') return 'warning';
-
-    return 'normal';
-  }, [o2Status, tempStatus, humStatus, firebaseStatus, deviceStatus]);
 
   // Summary Metrics calculations
   const avgOxygen = useMemo(() => {
@@ -461,55 +506,45 @@ export default function App() {
 
 
 
-  const predictionChartData = useMemo(() => {
-    const data: any[] = [];
-    const histSlice = oxygenHistory.slice(-5); // last 5 points of history
-    
-    const currentVal = oxygen > 0 ? oxygen : (predO2_5m && predO2_5m > 0 ? predO2_5m : 20.9);
-
-    // 1. Add historical readings
-    histSlice.forEach((val, idx) => {
-      const isNow = idx === histSlice.length - 1;
-      const minsAgo = (histSlice.length - 1 - idx) * 5;
-      const timeLabel = isNow ? "Now" : `-${minsAgo}`;
-      data.push({
-        time: timeLabel,
-        oxygen: Number(val.toFixed(2)),
-        predicted: isNow ? Number(val.toFixed(2)) : null
-      });
-    });
-
-    // If history is empty, push a fallback "Now" item with current oxygen
-    if (data.length === 0) {
-      data.push({
-        time: "Now",
-        oxygen: Number(currentVal.toFixed(2)),
-        predicted: Number(currentVal.toFixed(2))
-      });
-    }
-
-    // 2. Add projection points (+5 and +10 mins) only if we have prediction values
-    const next5 = o2Projection[0] ?? predO2_5m;
-    const next10 = o2Projection[1] ?? predO2_10m;
-
-    if (next5 !== null && next5 !== undefined) {
-      data.push({
-        time: "+5",
-        oxygen: null,
-        predicted: Number(next5.toFixed(2))
-      });
-    }
-
-    if (next10 !== null && next10 !== undefined) {
-      data.push({
-        time: "+10",
-        oxygen: null,
-        predicted: Number(next10.toFixed(2))
-      });
-    }
-
-    return data;
-  }, [oxygenHistory, o2Projection, predO2_5m, predO2_10m, oxygen]);
+  // const predictionChartData = useMemo(() => {
+  //   const data: any[] = [];
+  //   const histSlice = oxygenHistory.slice(-5);
+  //   const currentVal = oxygen > 0 ? oxygen : (predO2_5m && predO2_5m > 0 ? predO2_5m : 20.9);
+  //   histSlice.forEach((val, idx) => {
+  //     const isNow = idx === histSlice.length - 1;
+  //     const minsAgo = (histSlice.length - 1 - idx) * 5;
+  //     const timeLabel = isNow ? "Now" : `-${minsAgo}`;
+  //     data.push({
+  //       time: timeLabel,
+  //       oxygen: Number(val.toFixed(2)),
+  //       predicted: isNow ? Number(val.toFixed(2)) : null
+  //     });
+  //   });
+  //   if (data.length === 0) {
+  //     data.push({
+  //       time: "Now",
+  //       oxygen: Number(currentVal.toFixed(2)),
+  //       predicted: Number(currentVal.toFixed(2))
+  //     });
+  //   }
+  //   const next5 = o2Projection[0] ?? predO2_5m;
+  //   const next10 = o2Projection[1] ?? predO2_10m;
+  //   if (next5 !== null && next5 !== undefined) {
+  //     data.push({
+  //       time: "+5",
+  //       oxygen: null,
+  //       predicted: Number(next5.toFixed(2))
+  //     });
+  //   }
+  //   if (next10 !== null && next10 !== undefined) {
+  //     data.push({
+  //       time: "+10",
+  //       oxygen: null,
+  //       predicted: Number(next10.toFixed(2))
+  //     });
+  //   }
+  //   return data;
+  // }, [oxygenHistory, o2Projection, predO2_5m, predO2_10m, oxygen]);
 
   // Custom Trend Line Plotter
   const selectedTrendData = useMemo(() => {
@@ -842,218 +877,7 @@ export default function App() {
 
 
 
-  const predictionAreaCard = (
-    <div className="glass-card" style={{ width: '100%' }}>
-      <div className="chart-header" style={{ marginBottom: '24px' }}>
-        <div>
-          <h3 className="card-title">Oxygen Prediction (5 & 10 Minutes)</h3>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Status: <span style={{ color: predO2_5m !== null ? 'var(--color-success)' : 'var(--color-warning)', fontWeight: 600 }}>
-              {predO2_5m !== null ? "Active" : "Waiting for ML predictions..."}
-            </span>
-          </div>
-        </div>
-        
-        <div className="chart-filters">
-          <button 
-            className={`filter-btn ${predictionChartType === 'area' ? 'active' : ''}`}
-            onClick={() => setPredictionChartType('area')}
-          >
-            Area Chart
-          </button>
-          <button 
-            className={`filter-btn ${predictionChartType === 'linear' ? 'active' : ''}`}
-            onClick={() => setPredictionChartType('linear')}
-          >
-            Linear Chart
-          </button>
-        </div>
-      </div>
-
-      <div className="prediction-container">
-        {/* Chart View */}
-        <div style={{ height: '240px', width: '100%', position: 'relative' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            {predictionChartType === 'area' ? (
-              <AreaChart data={predictionChartData} margin={{ top: 18, right: 10, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="predictionAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22D3EE" stopOpacity={0.20}/>
-                    <stop offset="95%" stopColor="#22D3EE" stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="rgba(255, 255, 255, 0.04)" strokeDasharray="3 3" vertical={false} />
-                <XAxis 
-                  dataKey="time" 
-                  stroke="var(--text-secondary)" 
-                  fontSize={10.5} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  dy={10}
-                />
-                <YAxis 
-                  domain={['dataMin - 0.02', 'dataMax + 0.02']} 
-                  stroke="var(--text-secondary)" 
-                  fontSize={10} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  dx={-5}
-                  width={35}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }} />
-                <ReferenceLine 
-                  x="Now" 
-                  stroke="rgba(255, 255, 255, 0.15)" 
-                  strokeDasharray="4 4" 
-                  label={(props: any) => {
-                    const { viewBox } = props;
-                    const { x, y } = viewBox;
-                    return (
-                      <g>
-                        <text x={x} y={y - 14} fill="#2F80FF" fontSize={9.5} fontWeight={700} textAnchor="middle">
-                          NOW
-                        </text>
-                        <text x={x} y={y - 3} fill="#2F80FF" fontSize={10} fontWeight={400} textAnchor="middle">
-                          │
-                        </text>
-                      </g>
-                    );
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="predicted" 
-                  stroke="#22D3EE" 
-                  strokeWidth={3.5} 
-                  fill="url(#predictionAreaGrad)" 
-                  connectNulls 
-                  isAnimationActive={true}
-                  animationDuration={1000}
-                  dot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    if (payload.time === '+5' || payload.time === '+10') {
-                      return (
-                        <g key={payload.time}>
-                          <circle cx={cx} cy={cy} r={8} fill="#22D3EE" fillOpacity={0.25} style={{ filter: 'drop-shadow(0 0 3px #22D3EE)' }} />
-                          <circle cx={cx} cy={cy} r={4.5} fill="#22D3EE" stroke="#FFFFFF" strokeWidth={1} />
-                        </g>
-                      );
-                    }
-                    return null;
-                  }}
-                  activeDot={{ r: 6, fill: '#22D3EE', strokeWidth: 1.5, stroke: '#ffffff' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="oxygen" 
-                  stroke="#2F80FF" 
-                  strokeWidth={2.5} 
-                  dot={{ r: 3, fill: '#2F80FF', strokeWidth: 0 }} 
-                  connectNulls 
-                  activeDot={{ r: 5 }}
-                />
-              </AreaChart>
-            ) : (
-              <LineChart data={predictionChartData} margin={{ top: 18, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(255, 255, 255, 0.04)" strokeDasharray="3 3" vertical={false} />
-                <XAxis 
-                  dataKey="time" 
-                  stroke="var(--text-secondary)" 
-                  fontSize={10.5} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  dy={10}
-                />
-                <YAxis 
-                  domain={['dataMin - 0.02', 'dataMax + 0.02']} 
-                  stroke="var(--text-secondary)" 
-                  fontSize={10} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  dx={-5}
-                  width={35}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }} />
-                <ReferenceLine 
-                  x="Now" 
-                  stroke="rgba(255, 255, 255, 0.15)" 
-                  strokeDasharray="4 4" 
-                  label={(props: any) => {
-                    const { viewBox } = props;
-                    const { x, y } = viewBox;
-                    return (
-                      <g>
-                        <text x={x} y={y - 14} fill="#2F80FF" fontSize={9.5} fontWeight={700} textAnchor="middle">
-                          NOW
-                        </text>
-                        <text x={x} y={y - 3} fill="#2F80FF" fontSize={10} fontWeight={400} textAnchor="middle">
-                          │
-                        </text>
-                      </g>
-                    );
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="predicted" 
-                  stroke="#22D3EE" 
-                  strokeWidth={3.5} 
-                  connectNulls 
-                  isAnimationActive={true}
-                  animationDuration={1000}
-                  dot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    if (payload.time === '+5' || payload.time === '+10') {
-                      return (
-                        <g key={payload.time}>
-                          <circle cx={cx} cy={cy} r={8} fill="#22D3EE" fillOpacity={0.25} style={{ filter: 'drop-shadow(0 0 3px #22D3EE)' }} />
-                          <circle cx={cx} cy={cy} r={4.5} fill="#22D3EE" stroke="#FFFFFF" strokeWidth={1} />
-                        </g>
-                      );
-                    }
-                    return null;
-                  }}
-                  activeDot={{ r: 6, fill: '#22D3EE', strokeWidth: 1.5, stroke: '#ffffff' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="oxygen" 
-                  stroke="#2F80FF" 
-                  strokeWidth={2.5} 
-                  dot={{ r: 3, fill: '#2F80FF', strokeWidth: 0 }} 
-                  connectNulls 
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            )}
-          </ResponsiveContainer>
-        </div>
-
-        {/* Prediction Info Cards */}
-        <div className="prediction-summary-cards">
-          <div className="prediction-summary-mini-card">
-            <span className="prediction-mini-title">Prediction +5 min</span>
-            <div className="prediction-mini-value-group">
-              <span className="prediction-mini-value">
-                {predO2_5m !== null && predO2_5m !== undefined ? predO2_5m.toFixed(2) : '--'}
-              </span>
-              {predO2_5m !== null && predO2_5m !== undefined && <span className="prediction-mini-unit">%</span>}
-            </div>
-          </div>
-          
-          <div className="prediction-summary-mini-card">
-            <span className="prediction-mini-title">Prediction +10 min</span>
-            <div className="prediction-mini-value-group">
-              <span className="prediction-mini-value">
-                {predO2_10m !== null && predO2_10m !== undefined ? predO2_10m.toFixed(2) : '--'}
-              </span>
-              {predO2_10m !== null && predO2_10m !== undefined && <span className="prediction-mini-unit">%</span>}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  // const predictionAreaCard = null;
 
   const trendsCard = (
     <div className="glass-card" style={{ width: '100%' }}>
@@ -1456,8 +1280,8 @@ export default function App() {
           </svg>
           <div className="status-grid-label-group">
             <span className="status-grid-label">Sensor Status</span>
-            <span className="status-grid-value" style={{ color: deviceStatus?.status === 'Online' ? 'var(--color-success)' : 'var(--color-critical)' }}>
-              {deviceStatus ? deviceStatus.status.toUpperCase() : 'OFFLINE'}
+            <span className="status-grid-value" style={{ color: isSimulated ? 'var(--accent-blue)' : 'var(--color-success)' }}>
+              {isSimulated ? 'SIMULATED' : 'LIVE (ESP32)'}
             </span>
           </div>
         </div>
@@ -1534,6 +1358,7 @@ export default function App() {
     </div>
   );
 
+
   return (
     <div className={`app-container ${theme}-theme`}>
       {loading && <Loader onComplete={() => setLoading(false)} />}
@@ -1607,9 +1432,14 @@ export default function App() {
             </div>
 
             {/* Sensor Link Indicator */}
-            <div className="status-indicator">
-              <span className={`status-dot ${deviceStatus?.status === 'Online' ? 'active' : 'critical'}`} />
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>SENSOR: <strong style={{ color: deviceStatus?.status === 'Online' ? 'var(--color-success)' : 'var(--color-critical)' }}>{deviceStatus?.status === 'Online' ? 'ONLINE' : 'OFFLINE'}</strong></span>
+            <div className="status-indicator" title={isSimulated ? 'Data source: simulated telemetry (hardware sensor not connected)' : 'Data source: live ESP32 hardware'}>
+              <span className={`status-dot ${isSimulated ? 'simulated' : 'active'}`} />
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                {isSimulated ? 'SOURCE: ' : 'SENSOR: '}
+                <strong style={{ color: isSimulated ? 'var(--accent-blue)' : 'var(--color-success)' }}>
+                  {isSimulated ? 'SIMULATED' : 'LIVE (ESP32)'}
+                </strong>
+              </span>
             </div>
 
             {/* Live Indicator */}
@@ -1651,34 +1481,12 @@ export default function App() {
         </header>
 
         {/* Dynamic Safety HUD Banner */}
-        <div className={`hud-banner ${overallSafety}`}>
+        <div className={`hud-banner ${hudConfig.hudClass}`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '1.25rem' }}>
-              {overallSafety === 'critical' ? '🚨' : overallSafety === 'warning' ? '⚠️' : '🛡️'}
-            </span>
-            <span>
-              {overallSafety === 'critical' 
-                ? 'CRITICAL CHAMBER BREACH: ENVIRONMENTAL CRITICAL ALARM ACTIVE!' 
-                : (firebaseStatus !== 'CONNECTED' || !deviceStatus || deviceStatus.status !== 'Online')
-                  ? `DEGRADED MONITORING: ${
-                      firebaseStatus !== 'CONNECTED' 
-                        ? 'FIREBASE DATABASE OFFLINE' 
-                        : 'CHAMBER SENSOR NODE OFFLINE'
-                    }. REAL-TIME TELEMETRY IS INACTIVE.`
-                  : overallSafety === 'warning' 
-                    ? 'WARNING LEVEL BREACH: SENSORS REPORTING OUT OF NOMINAL BOUNDS.' 
-                    : 'SYSTEM SECURE: ALL ENVIRONMENTAL SAFETY PARAMETERS NOMINAL.'}
-            </span>
+            <span style={{ fontSize: '1.25rem' }}>{hudConfig.hudIcon}</span>
+            <span>{hudConfig.hudText}</span>
           </div>
-          <span className={`hud-pill ${overallSafety}`}>
-            {overallSafety === 'critical' 
-              ? 'CRITICAL' 
-              : (firebaseStatus !== 'CONNECTED' || !deviceStatus || deviceStatus.status !== 'Online')
-                ? 'DEGRADED'
-                : overallSafety === 'warning' 
-                  ? 'WARNING' 
-                  : 'SAFE'}
-          </span>
+          <span className={`hud-pill ${hudConfig.hudClass}`}>{hudConfig.hudPillText}</span>
         </div>
 
         {/* SECTION RENDERING CONDITIONAL BLOCKS */}
@@ -1697,10 +1505,7 @@ export default function App() {
               {forecastCard}
             </section>
 
-            {/* NEW PREDICTION AREA CARD */}
-            <section style={{ marginTop: '24px' }}>
-              {predictionAreaCard}
-            </section>
+
 
             {/* LOWER SECTION */}
             <section className="lower-grid">
@@ -1730,7 +1535,6 @@ export default function App() {
             {/* Full size parameter trends */}
             <section style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
               {trendsCard}
-              {predictionAreaCard}
             </section>
           </div>
         )}
@@ -1739,7 +1543,6 @@ export default function App() {
           <section style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {forecastCard}
-              {predictionAreaCard}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {recCard}
