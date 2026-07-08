@@ -169,7 +169,7 @@ The database utilizes the following structure:
 
 ---
 
-## 🔒 Security & Sensitivity Controls
+## 🔒 Security & Sensitivity  Controls
 To protect configurations, certificates, and local assets, the project implements a strict root-level [.gitignore](file:///C:/Users/akans/OneDrive/Desktop/DRDO/O2.monitoring/.gitignore) file which prevents the following from being pushed to version control:
 *   Firebase service account keys (`serviceAccountKey.json`, etc.).
 *   Local environment secrets (`.env`, `*.env`).
